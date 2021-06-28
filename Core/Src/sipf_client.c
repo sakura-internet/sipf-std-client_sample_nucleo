@@ -48,6 +48,15 @@ int SipfClientUartReadByte(uint8_t *byte)
 	}
 }
 
+int SipfClientUartWriteByte(uint8_t byte)
+{
+	 int ret = HAL_UART_Transmit(pModUart, &byte, 1, 0);
+	 if (ret != HAL_OK) {
+		 return -ret;
+	 }
+	 return 0;
+}
+
 int SipfClientFlushReadBuff(void)
 {
 	uint8_t b;

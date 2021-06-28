@@ -200,7 +200,7 @@ int main(void)
 	}
 	for (;;) {
 		if (HAL_UART_Receive(&huart2, &b, 1, 0) == HAL_OK) {
-			HAL_UART_Transmit(&huart1, &b, 1, 0);
+			SipfClientUartWriteByte(b);
 		} else {
 			break;
 		}

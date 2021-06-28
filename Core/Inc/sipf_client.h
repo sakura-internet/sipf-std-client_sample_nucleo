@@ -35,6 +35,7 @@ int SipfCmdTx(uint8_t tag_id, SimpObjTypeId type, uint8_t *value, uint8_t value_
 void SipfClientUartInit(UART_HandleTypeDef *puart);
 int SipfClientUartIsEmpty(void);
 int SipfClientUartReadByte(uint8_t *byte);
+int SipfClientUartWriteByte(uint8_t byte);
 
 int SipfClientFlushReadBuff(void);
 int SipfUtilReadLine(uint8_t *buff, int buff_len, int timeout_ms);
