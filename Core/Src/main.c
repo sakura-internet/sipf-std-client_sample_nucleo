@@ -102,7 +102,7 @@ static int waitBootModule(void)
 
 	// Wait READY message.
 	for (;;) {
-		len = SipfUtilReadLine(buff, sizeof(buff), 20000);
+		len = SipfUtilReadLine(buff, sizeof(buff), 300000);		//Timeout 5min.
 		if (len < 0) {
 			// ERROR or BUSY or TIMEOUT
 			return len;
