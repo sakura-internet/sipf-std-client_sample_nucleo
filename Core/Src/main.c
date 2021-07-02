@@ -98,20 +98,33 @@ static void requestResetModule(void)
 
 static int waitBootModule(void)
 {
-	int len;
+	int len, is_echo = 0;
 
 	// Wait READY message.
 	for (;;) {
-		len = SipfUtilReadLine(buff, sizeof(buff), 300000);		//Timeout 5min.
+		len = SipfUtilReadLine(buff, sizeof(buff), 65000);
 		if (len < 0) {
 			// ERROR or BUSY or TIMEOUT
 			return len;
 		}
+		if (len == 0) {
+			continue;
+		}
 		if (len >= 13) {
+			if (memcmp(buff, "*** SIPF Client", 15) == 0) {
+				is_echo = 1;
+			}
 			//Detect READY message.
 			if (memcmp(buff, "+++ Ready +++", 13) == 0) {
 				break;
 			}
+			if (memcmp(buff, "ERR:Faild", 9) == 0) {
+				print_msg("%s\r\n", buff);
+				return -1;
+			}
+		}
+		if (is_echo) {
+			print_msg("%s\r\n", buff);
 		}
 	}
 	return 0;
@@ -157,15 +170,17 @@ int main(void)
   print_msg("Request module reset.\r\n");
   requestResetModule();
 
-  print_msg("Waiting module boot... ");
+  print_msg("Waiting module boot\r\n");
+  print_msg("### MODULE OUTPUT ###\r\n");
   ret = waitBootModule();
   if (ret != 0) {
 	  print_msg("FAILED(%d)\r\n", ret);
 	  return -1;
   }
+  print_msg("#####################\r\n");
   print_msg("OK\r\n");
 
-  HAL_Delay(2000);
+  HAL_Delay(100);
 
   print_msg("Set Auth mode... ");
   ret = SipfSetAuthMode(0x01);
