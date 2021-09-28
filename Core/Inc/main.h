@@ -47,7 +47,9 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define AUTH_MODE	(1)
+#define SAMPLE_TX	(0)
+#define SAMPLE_RX	(1)
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

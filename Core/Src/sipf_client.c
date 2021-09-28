@@ -10,12 +10,12 @@
 #include <string.h>
 
 UART_HandleTypeDef *pModUart = NULL;
-#define UART_RX_BUFF_SZ (128)
+#define UART_RX_BUFF_SZ (512)
 static uint8_t rxBuff[UART_RX_BUFF_SZ];
 static uint32_t p_read;
 #define DMA_WRITE_PTR ( (UART_RX_BUFF_SZ - pModUart->hdmarx->Instance->NDTR) % (UART_RX_BUFF_SZ) )
 
-static char cmd[256];
+static char cmd[512];
 
 extern UART_HandleTypeDef huart2;
 
@@ -277,7 +277,7 @@ int SipfSetAuthInfo(char *user_name, char *password)
     return 0;
 }
 
-int SipfCmdTx(uint8_t tag_id, SimpObjTypeId type, uint8_t *value, uint8_t value_len, uint8_t *otid)
+int SipfCmdTx(uint8_t tag_id, SipfObjTypeId type, uint8_t *value, uint8_t value_len, uint8_t *otid)
 {
     int len;
     int ret;
@@ -288,7 +288,7 @@ int SipfCmdTx(uint8_t tag_id, SimpObjTypeId type, uint8_t *value, uint8_t value_
     // $$TXコマンド送信
     len = sprintf(cmd, "$$TX %02X %02X ", tag_id, (uint8_t)type);
     switch (type) {
-    	case OBJ_TYPE_BIN_BASE64:
+    	case OBJ_TYPE_BIN:
     	case OBJ_TYPE_STR_UTF8:
 			//順番どおりに文字列に変換
             for (int i = 0; i < value_len; i++) {
@@ -348,3 +348,225 @@ int SipfCmdTx(uint8_t tag_id, SimpObjTypeId type, uint8_t *value, uint8_t value_
     }
     return 0;
 }
+
+
+static int utilHexToUint8(char *hex, uint8_t *value)
+{
+	if ((hex[0] >= '0') && (hex[0] <= '9')) {
+		*value = (hex[0] - '0') << 4;
+	} else if ((hex[0] >= 'A') && (hex[0] <= 'F')) {
+		*value = (hex[0] - 'A' + 10) << 4;
+	} else if ((hex[0] >= 'a') && (hex[0] <= 'f')) {
+		*value = (hex[0] - 'a' + 10) << 4;
+	} else {
+		return -1;
+	}
+
+	if ((hex[1] >= '0') && (hex[1] <= '9')) {
+		*value |= (hex[1] - '0') & 0x0f;
+	} else if ((hex[1] >= 'A') && (hex[1] <= 'F')) {
+		*value |= (hex[1] - 'A' + 10) & 0x0f;
+	} else if ((hex[1] >= 'a') && (hex[1] <= 'f')) {
+		*value |= (hex[1] - 'a' + 10) & 0x0f;
+	} else {
+		return -1;
+	}
+
+	return *value;
+}
+
+static uint8_t rxValueBuff[1024];
+int SipfCmdRx(uint8_t *otid, uint64_t *user_send_datetime_ms, uint64_t *sipf_recv_datetime_ms, uint8_t *remain, uint8_t *obj_cnt, SipfObjObject *obj_list, uint8_t obj_list_sz)
+{
+	enum cmd_rx_stat {
+		W_OTID,		//OTID待ち
+		W_SEND_DTM,	//ユーザーサーバー送信時刻待ち
+		W_RECV_DTM,	//SIPF受信時刻待ち
+		W_REMAIN,	//REMAIN待ち
+		W_QTY,		//OBJQTY待ち
+		W_OBJS,		//OBJ待ち
+	};
+
+    int len;
+    int ret;
+
+    //UART受信バッファを読み捨てる
+    SipfClientFlushReadBuff();
+
+    // $$RXコマンド送信
+    len = sprintf(cmd, "$$RX\r\n");
+    for (;;) {
+        ret = HAL_UART_Transmit(pModUart, (uint8_t*)cmd, len, 100);
+        if (ret == HAL_OK) {
+        	break;
+        } else if (ret != -HAL_BUSY) {
+        	return -ret;
+        }
+    	HAL_Delay(10);
+    }
+
+    // 応答を受け取る
+    enum cmd_rx_stat rx_stat = W_OTID;
+    int line_timeout_ms = 5000;	// 最初はSIPFからの応答を待つので行間タイムアウトを大きくする
+    uint8_t cnt = 0;
+    uint16_t idx = 0;
+    char *value_top;
+    for (;;) {
+    	ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), line_timeout_ms);	// 1行読む
+    	if (ret == -3) {
+    		//タイムアウト
+    		return -3;
+    	}
+
+    	if (ret == 0) {
+    		// 何もなければもういちど
+    		continue;
+    	}
+
+    	if ((ret == 1) && ((cmd[0] == '\r') || (cmd[0] == '\n'))) {
+    		// 空行は読み飛ばし
+    		continue;
+    	}
+
+    	switch (rx_stat) {
+    	/* OTID待ち */
+    	case W_OTID:
+    		if (cmd[0] == '$') {
+    			// エコーバックを受信したら読み捨て
+    			continue;
+    		}
+    		if (memcmp(cmd, "OK", 2) == 0) {
+    			// 受信データなし
+    			return 0;
+    		}
+    		if (ret != 32) {
+    			// OTIDじゃないっぽい
+    			return -1;
+    		}
+    		memcpy(otid, cmd, 32);
+    		rx_stat = W_SEND_DTM;		// ユーザーサーバー送信時刻待ちへ
+    		line_timeout_ms = 200;	// 行間タイムアウトを200msに設定
+    		break;
+    	/* ユーザーサーバー送信時刻待ち */
+    	case W_SEND_DTM:
+    		if (ret != 16) {
+    			// ユーザーサーバーの送信時刻(64bit整数)じゃないっぽい
+    			return -1;
+    		}
+    		*user_send_datetime_ms = 0;
+    		for (int i = 0; i < 8; i++) {
+    			uint8_t v;
+    			if (utilHexToUint8(&cmd[i*2], &v) == -1) {
+    				// HEXから数値への変換ができなかった
+    				return -1;
+    			}
+    			*user_send_datetime_ms |= (uint64_t)v << (56-(i*8));
+    		}
+    		rx_stat = W_RECV_DTM;
+    		break;
+    	/* SIPF受信時刻待ち */
+    	case W_RECV_DTM:
+    		if (ret != 16) {
+    			// SIPFの受信時刻(64bit整数)じゃないっぽい
+    			return -1;
+    		}
+    		*sipf_recv_datetime_ms = 0;
+    		for (int i = 0; i < 8; i++) {
+    			uint8_t v;
+    			if (utilHexToUint8(&cmd[i*2], &v) == -1) {
+    				// HEXから数値への変換ができなかった
+    				return -1;
+    			}
+    			*sipf_recv_datetime_ms |= (uint64_t)v << (56-(i*8));
+    		}
+    		rx_stat = W_REMAIN;
+    		break;
+    	/* REMAIN待ち */
+    	case W_REMAIN:
+    		if (ret != 2) {
+    			// REMAIN(8bit整数)じゃないっぽい
+    			return -1;
+    		}
+    		if (utilHexToUint8(cmd, remain) == -1) {
+    			// HEXから変換できなかった
+    			return -1;
+    		}
+    		rx_stat = W_QTY;
+    		break;
+    	/* OBJQTY待ち */
+    	case W_QTY:
+    		if (ret != 2) {
+    			// OBJQTY(8bit整数)じゃないっぽい
+    			return -1;
+    		}
+    		if (utilHexToUint8(cmd, obj_cnt) == -1) {
+    			// HEXから変換できなかった
+    			return -1;
+    		}
+    		rx_stat = W_OBJS;
+    		break;
+    	/* OBJ待ち */
+    	case W_OBJS:
+    		if (memcmp(cmd, "OK", 2) == 0) {
+    			// OBJECTを受信しきった
+    			return cnt;
+    		}
+    		if (memcmp(cmd, "NG", 2) == 0) {
+    			// エラーらしい
+    			return -1;
+    		}
+    		if (cnt >= obj_list_sz) {
+    			// リストの上限に達した
+    			continue;
+    		}
+    		if (ret >= 11) {
+    			// OBJECTっぽい
+        		if ((cmd[2] != ' ') || (cmd[5] != ' ') || (cmd[8] != ' ')) {
+        			// OBJCTじゃない
+        			return -1;
+        		}
+
+        		SipfObjObject *obj = &obj_list[cnt++];
+        		// TYPE
+        		if (utilHexToUint8(&cmd[0], &obj->type) == -1) {
+        			// HEXから変換できなかった
+        			return -1;
+        		}
+        		// TAG_ID
+        		if (utilHexToUint8(&cmd[3], &obj->tag_id) == -1) {
+        			// HEXから変換できなかった
+        			return -1;
+        		}
+        		// VALUE_LEN
+        		if (utilHexToUint8(&cmd[6], &obj->value_len) == -1) {
+        			// HEXから変換できなかった
+        			return -1;
+        		}
+        		//VALUE
+        		obj->value = &rxValueBuff[idx];	//VALUEの先頭のポインタをvalueに設定
+        		value_top = &cmd[9];
+        		if ((obj->type == OBJ_TYPE_BIN) || (obj->type == OBJ_TYPE_STR_UTF8)) {
+        			//そのままの順でHEXから変換してバッファに追加
+        			for (int i = 0; i < obj->value_len; i++) {
+        				if (utilHexToUint8(&value_top[i*2], &rxValueBuff[idx++]) == -1) {
+        					// HEXからの変換に失敗
+        					return -1;
+        				}
+        			}
+        		} else {
+        			//バイトスワップしてHEXから変換してバッファに追加
+        			for (int i = obj->value_len; i > 0; i--) {
+        				if (utilHexToUint8(&value_top[(i-1)*2], &rxValueBuff[idx++]) == -1) {
+        					// HEXからの変換に失敗
+        					return -1;
+        				}
+        			}
+        		}
+    		}
+    		break;
+    	}
+    }
+
+}
+
+
