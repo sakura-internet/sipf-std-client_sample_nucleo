@@ -165,9 +165,9 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   print_msg("*** SIPF Client for Nucleo(");
-#if SAMPLE_TX
+#if defined(SAMPLE_TX)
   print_msg("TX SAMPLE APP");
-#elif SAMPLE_RX
+#elif defined(SAMPLE_RX)
   print_msg("RX SAMPLE APP");
 #else
 #error Please select Sample Application.(Declare SAMPLE_XX to '1' on main.h)
@@ -206,7 +206,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-#if SAMPLE_TX
+#if defined(SAMPLE_TX)
   uint32_t count_tx = 1;
 #endif
   uint32_t poll_timeout = uwTick + SW_POLL_TIMEOUT;
@@ -239,7 +239,7 @@ int main(void)
 		ps = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
 		if ((prev_ps == GPIO_PIN_SET) && (ps == GPIO_PIN_RESET)) {
 			memset(buff, 0, sizeof(buff));
-#if SAMPLE_TX
+#if defined(SAMPLE_TX)
 			print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
 
 			ret = SipfCmdTx(0x01, 0x04, (uint8_t*)&count_tx, 4, buff);
@@ -255,7 +255,7 @@ int main(void)
 				print_msg("NG\r\n");
 				break;
 			}
-#elif SAMPLE_RX
+#elif defined(SAMPLE_RX)
 			print_msg("B1 PUSHED\r\nRX\r\n");
 			SipfObjObject objs[16];
 			uint64_t stm, rtm;
@@ -364,8 +364,9 @@ int main(void)
 				//エラーだった
 				print_msg("SipfCmdRx() failed: %d\r\n", ret);
 			}
-		}
 #endif
+		}
+
 		prev_ps = ps;
 	}
   }
