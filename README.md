@@ -29,6 +29,18 @@ cd sipf-std-client_sample_nucleo
 
 2. Select `Existing Projects into Workspace` and push `Next>` button.
 
-3. Select the git coloned directory and push `Finish` button
-.
+3. Select the git coloned directory and push `Finish` button.
 
+
+### Select application
+
+This project included below applications.  
+You can select the application by selecting the C preprocessor macro.  
+
+| application | MACRO | CubeIDE build configuration |
+|---|---|---|
+| TX(uplink) sample | `SAMPLE_TX` | `Debug-TX` or `Release-TX` |
+| RX(downlink) sample | `SAMPLE_RX` | `Debug-RX` or `Release-RX` |
+
+We have prepared MACRO defined build configuration for CubeIDE.  
+Select bulid configuration from `[Project]-[Build Configurations]-[Set Active]` menu.

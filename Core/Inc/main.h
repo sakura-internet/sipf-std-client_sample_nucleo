@@ -47,6 +47,12 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
+#define AUTH_MODE	(1)
+/* Select application */
+#if !defined(SAMPLE_TX) && !defined(SAMPLE_RX)
+/* ビルド構成で未設定なら */
+#define SAMPLE_TX	//デフォルトはTXサンプルアプリ
+#endif
 
 /* USER CODE END EM */
 

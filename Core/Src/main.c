@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 #include "sipf_client.h"
 /* USER CODE END Includes */
 
@@ -163,7 +164,15 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  print_msg("*** SIPF Client for Nucleo ***\r\n");
+  print_msg("*** SIPF Client for Nucleo(");
+#if defined(SAMPLE_TX)
+  print_msg("TX SAMPLE APP");
+#elif defined(SAMPLE_RX)
+  print_msg("RX SAMPLE APP");
+#else
+#error Please select Sample Application.(Declare SAMPLE_XX to '1' on main.h)
+#endif
+  print_msg(")***\r\n");
 
   SipfClientUartInit(&huart1);
 
@@ -181,7 +190,7 @@ int main(void)
   print_msg("OK\r\n");
 
   HAL_Delay(100);
-
+#if AUTH_MODE
   print_msg("Set Auth mode... ");
   ret = SipfSetAuthMode(0x01);
   if (ret != 0) {
@@ -189,7 +198,7 @@ int main(void)
 	return -1;
   }
   print_msg("OK\r\n");
-
+#endif
   SipfClientFlushReadBuff();
 
   print_msg("+++ Ready +++\r\n");
@@ -197,7 +206,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+#if defined(SAMPLE_TX)
   uint32_t count_tx = 1;
+#endif
   uint32_t poll_timeout = uwTick + SW_POLL_TIMEOUT;
   GPIO_PinState prev_ps = GPIO_PIN_SET;
   while (1)
@@ -227,16 +238,135 @@ int main(void)
 		GPIO_PinState ps;
 		ps = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
 		if ((prev_ps == GPIO_PIN_SET) && (ps == GPIO_PIN_RESET)) {
-			print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
 			memset(buff, 0, sizeof(buff));
+#if defined(SAMPLE_TX)
+			print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
+
 			ret = SipfCmdTx(0x01, 0x04, (uint8_t*)&count_tx, 4, buff);
-			if (ret == 0) {
+			switch (ret) {
+			case 0:
 				print_msg("OK(OTID: %s)\r\n", buff);
 				count_tx++;
-			} else {
+				break;
+			case -3:
+				print_msg("Receive Timeout...\r\n");
+				break;
+			default:
 				print_msg("NG\r\n");
+				break;
 			}
+#elif defined(SAMPLE_RX)
+			print_msg("B1 PUSHED\r\nRX\r\n");
+			SipfObjObject objs[16];
+			uint64_t stm, rtm;
+			uint8_t remain, qty;
+			ret = SipfCmdRx(buff, &stm, &rtm, &remain, &qty, objs, 16);
+			print_msg("SipfCmdRx(): %d\r\n", ret);
+			if (ret > 0) {
+				time_t t;
+				struct tm *ptm;
+				static char ts[128];
+				print_msg("OTID:%s\r\n", buff);
+				/* USER_SEND_DATE_TIME*/
+				t = (time_t)stm / 1000;
+				ptm = localtime(&t);
+				strftime(ts, sizeof(ts),"User send datetime(UTC)    : %Y/%m/%d %H:%M:%S\r\n", ptm);
+				print_msg(ts);
+				/* SIPF_RECEIVE_DATE_TIME*/
+				t = (time_t)rtm / 1000;
+				ptm = localtime(&t);
+				strftime(ts, sizeof(ts),"SIPF received datetime(UTC): %Y/%m/%d %H:%M:%S\r\n", ptm);
+				print_msg(ts);
+				/* REMAIN / QTY */
+				print_msg("remain:%d\r\nqty:%d\r\n", remain, qty);
+
+				SipfObjPrimitiveType v;
+				for (int i = 0; i < ret; i++) {
+					//受信データあった
+					print_msg("obj[%d]: type=0x%02x, tag=0x%02x, len=%d, value=", i, objs[i].type, objs[i].tag_id, objs[i].value_len);
+					uint8_t *p_value = objs[i].value;
+					switch (objs[i].type) {
+					case OBJ_TYPE_UINT8:
+						memcpy(v.b, p_value, sizeof(uint8_t));
+						print_msg("%u\r\n", v.u8);
+						break;
+					case OBJ_TYPE_INT8:
+						memcpy(v.b, p_value, sizeof(int8_t));
+						print_msg("%d\r\n", v.i8);
+						break;
+					case OBJ_TYPE_UINT16:
+						memcpy(v.b, p_value, sizeof(uint16_t));
+						print_msg("%u\r\n", v.u16);
+						break;
+					case OBJ_TYPE_INT16:
+						memcpy(v.b, p_value, sizeof(int16_t));
+						print_msg("%d\r\n", v.i16);
+						break;
+					case OBJ_TYPE_UINT32:
+						memcpy(v.b, p_value, sizeof(uint32_t));
+						print_msg("%u\r\n", v.u32);
+						break;
+					case OBJ_TYPE_INT32:
+						memcpy(v.b, p_value, sizeof(int32_t));
+						print_msg("%d\r\n", v.i32);
+						break;
+					case OBJ_TYPE_UINT64:
+						memcpy(v.b, p_value, sizeof(uint64_t));
+						print_msg("%llu\r\n", v.u64);
+						break;
+					case OBJ_TYPE_INT64:
+						memcpy(v.b, p_value, sizeof(int64_t));
+						print_msg("%lld\r\n", v.i64);
+						break;
+					case OBJ_TYPE_FLOAT32:
+						memcpy(v.b, p_value, sizeof(float));
+						print_msg("%f\r\n", v.f);
+						break;
+					case OBJ_TYPE_FLOAT64:
+						memcpy(v.b, p_value, sizeof(double));
+						print_msg("%lf\r\n", v.d);
+						break;
+					case OBJ_TYPE_BIN:
+						print_msg("0x");
+						for (int j = 0; j < objs[i].value_len; j++) {
+							print_msg("%02x", objs[i].value[j]);
+						}
+						print_msg("\r\n");
+						break;
+					case OBJ_TYPE_STR_UTF8:
+						for (int j = 0; j < objs[i].value_len; j++) {
+							print_msg("%c", objs[i].value[j]);
+						}
+						print_msg("\r\n");
+						break;
+					default:
+						break;
+					}
+					// LED2 ON/OFF サンプル
+					if ((objs[i].tag_id == 0x4c) && (objs[i].type == OBJ_TYPE_UINT8)) {
+						//Tag='L' で Type=uint8の場合
+						if (*(uint8_t*)objs[i].value == 0) {
+							// LED消す
+							print_msg("LED2(GREEN): OFF\r\n");
+							HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+						} else {
+							// LED付ける
+							print_msg("LED2(GREEN): ON\r\n");
+							HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+						}
+					}
+				}
+				print_msg("RX done.\r\n");
+			} else if (ret == 0) {
+				//受信データなかった
+				print_msg("SipfCmdRx() empty\r\n");
+			} else {
+				//エラーだった
+				print_msg("SipfCmdRx() failed: %d\r\n", ret);
+			}
+#endif
 		}
+
 		prev_ps = ps;
 	}
   }
