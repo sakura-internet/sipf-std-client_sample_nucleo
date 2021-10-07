@@ -48,6 +48,9 @@ typedef union {
 	uint8_t		b[8];
 }	SipfObjPrimitiveType;
 
+#define TMOUT_CMD	(10000)	// コマンドタイムアウト[ms]
+#define TMOUT_CHAR	(500)	// キャラクタ間タイムアウト[ms]
+
 int SipfSetAuthMode(uint8_t mode);
 int SipfSetAuthInfo(char *user_name, char *password);
 
