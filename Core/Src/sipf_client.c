@@ -125,7 +125,7 @@ static int sipfSendW(uint8_t addr, uint8_t value)
 
     // $Wコマンド応答待ち
     for (;;) {
-        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), 1000); // キャラクタ間タイムアウト1秒で1行読む
+        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CHAR); // キャラクタ間タイムアウトで1行読む
         if (ret < 0) {
             return ret;
         }
@@ -167,7 +167,7 @@ static int sipfSendR(uint8_t addr, uint8_t *read_value)
 	}
 	// $R応答待ち
 	for (;;) {
-		ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), 10000);
+		ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CMD);
 		if (ret < 0) {
 			return ret;
 		}
@@ -190,7 +190,7 @@ static int sipfSendR(uint8_t addr, uint8_t *read_value)
 		}
 	}
 	for (;;) {
-		ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), 500);
+		ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CHAR);
 		if (ret < 0) {
 			return ret;
 		}
@@ -316,7 +316,7 @@ int SipfCmdTx(uint8_t tag_id, SipfObjTypeId type, uint8_t *value, uint8_t value_
 
     // OTID待ち
     for (;;) {
-        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), 3000); // キャラクタ間タイムアウト1秒で1行読む
+        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CMD); // コマンドの応答を待つ
         if (ret == -3) {
             //タイムアウト
             return -3;
@@ -336,7 +336,7 @@ int SipfCmdTx(uint8_t tag_id, SipfObjTypeId type, uint8_t *value, uint8_t value_
         }
     }
     for (;;) {
-        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), 500); // キャラクタ間タイムアウト1秒で1行読む
+        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CHAR);
         if (ret == -3) {
             //タイムアウト
             return -3;
@@ -407,7 +407,7 @@ int SipfCmdRx(uint8_t *otid, uint64_t *user_send_datetime_ms, uint64_t *sipf_rec
 
     // 応答を受け取る
     enum cmd_rx_stat rx_stat = W_OTID;
-    int line_timeout_ms = 5000;	// 最初はSIPFからの応答を待つので行間タイムアウトを大きくする
+    int line_timeout_ms = TMOUT_CMD;	// 最初はSIPFからの応答を待つのでコマンドタイムアウトを指定
     uint8_t cnt = 0;
     uint16_t idx = 0;
     char *value_top;
@@ -444,8 +444,8 @@ int SipfCmdRx(uint8_t *otid, uint64_t *user_send_datetime_ms, uint64_t *sipf_rec
     			return -1;
     		}
     		memcpy(otid, cmd, 32);
-    		rx_stat = W_SEND_DTM;		// ユーザーサーバー送信時刻待ちへ
-    		line_timeout_ms = 200;	// 行間タイムアウトを200msに設定
+    		rx_stat = W_SEND_DTM;				// ユーザーサーバー送信時刻待ちへ
+    		line_timeout_ms = TMOUT_CHAR;	// 応答は受け取ったから以降はキャラクタ間タイムアウトを指定
     		break;
     	/* ユーザーサーバー送信時刻待ち */
     	case W_SEND_DTM:

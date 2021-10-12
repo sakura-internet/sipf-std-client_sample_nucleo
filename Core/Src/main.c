@@ -261,7 +261,6 @@ int main(void)
 			uint64_t stm, rtm;
 			uint8_t remain, qty;
 			ret = SipfCmdRx(buff, &stm, &rtm, &remain, &qty, objs, 16);
-			print_msg("SipfCmdRx(): %d\r\n", ret);
 			if (ret > 0) {
 				time_t t;
 				struct tm *ptm;
