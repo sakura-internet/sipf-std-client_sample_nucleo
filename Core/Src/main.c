@@ -130,6 +130,7 @@ static int waitBootModule(void)
 	}
 	return 0;
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -190,11 +191,18 @@ int main(void)
   print_msg("OK\r\n");
 
   HAL_Delay(100);
+
+  ret = SipfGetFwVersion();
+  if (ret != 0) {
+	  print_msg("SipfGetFwVersion(): FAILED\r\n");
+  }
+
+
 #if AUTH_MODE
   print_msg("Set Auth mode... ");
   ret = SipfSetAuthMode(0x01);
   if (ret != 0) {
-	print_msg((char *)buff, "FAILED(%d)\r\n", ret);
+	print_msg("FAILED(%d)\r\n", ret);
 	return -1;
   }
   print_msg("OK\r\n");
@@ -282,7 +290,7 @@ int main(void)
 				SipfObjPrimitiveType v;
 				for (int i = 0; i < ret; i++) {
 					//受信データあった
-					print_msg("obj[%d]: type=0x%02x, tag=0x%02x, len=%d, value=", i, objs[i].type, objs[i].tag_id, objs[i].value_len);
+					print_msg("obj[%d]: tag=0x%02x, type=0x%02x, len=%d, value=", i, objs[i].tag_id, objs[i].type, objs[i].value_len);
 					uint8_t *p_value = objs[i].value;
 					switch (objs[i].type) {
 					case OBJ_TYPE_UINT8:
