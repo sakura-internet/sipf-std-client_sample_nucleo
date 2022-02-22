@@ -54,10 +54,12 @@ typedef union {
 int SipfSetAuthMode(uint8_t mode);
 int SipfSetAuthInfo(char *user_name, char *password);
 
-int SipfGetFwVersion(void);
+int SipfReadFwVersion(uint32_t *version);
 
 int SipfCmdTx(uint8_t tag_id, SipfObjTypeId type, uint8_t *value, uint8_t value_len, uint8_t *otid);
 int SipfCmdRx(uint8_t *otid, uint64_t *user_send_datetime_ms, uint64_t *sipf_recv_datetime_ms, uint8_t *remain, uint8_t *obj_cnt, SipfObjObject *obj_list, uint8_t obj_list_sz);
+
+int SipfCmdFput(char *file_id, uint8_t *file_body, size_t sz_file);
 
 void SipfClientUartInit(UART_HandleTypeDef *puart);
 int SipfClientUartIsEmpty(void);

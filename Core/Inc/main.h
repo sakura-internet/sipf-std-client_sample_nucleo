@@ -49,7 +49,7 @@ extern "C" {
 /* USER CODE BEGIN EM */
 #define AUTH_MODE	(1)
 /* Select application */
-#if !defined(SAMPLE_TX) && !defined(SAMPLE_RX)
+#if !defined(SAMPLE_TX) && !defined(SAMPLE_RX) && !defined(SAMPLE_FPUT)
 /* ビルド構成で未設定なら */
 #define SAMPLE_TX	//デフォルトはTXサンプルアプリ
 #endif

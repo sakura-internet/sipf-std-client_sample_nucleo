@@ -5,9 +5,12 @@
  */
 #include "main.h"
 #include "sipf_client.h"
+#include "xmodem.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define FPUT_RETRY_MAX	(3)
 
 UART_HandleTypeDef *pModUart = NULL;
 #define UART_RX_BUFF_SZ (512)
@@ -279,9 +282,9 @@ int SipfSetAuthInfo(char *user_name, char *password)
 }
 
 /**
- * Fwバージョンを取得
+ * Fwバージョンをモジュールから取得
  */
-int SipfGetFwVersion(void)
+int SipfReadFwVersion(uint32_t *version)
 {
 	uint8_t v = 0;
 	if (sipfSendR(0xf1, &v) != 0) {
@@ -300,6 +303,10 @@ int SipfGetFwVersion(void)
 		return -1;
 	}
 	fw_version |= (uint32_t)v << 8;	// RELEASE上位
+
+	if (version) {
+		*version = fw_version;
+	}
 
 	return 0;
 }
@@ -609,6 +616,110 @@ int SipfCmdRx(uint8_t *otid, uint64_t *user_send_datetime_ms, uint64_t *sipf_rec
     	}
     }
 
+}
+
+
+static int sipfCmdFputWaitNg(void)
+{
+	int ret;
+    for (;;) {
+        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CHAR);
+        if (ret == -3) {
+            //タイムアウト
+            return -3;
+        }
+        if (memcmp(cmd, "NG", 2) == 0) {
+            //OK
+            break;
+        }
+    }
+    return 0;
+}
+
+uint8_t buf_xmodem_buff[XMODEM_SZ_BLOCK];
+int SipfCmdFput(char *file_id, uint8_t *file_body, size_t sz_file)
+{
+	//$$FGETコマンドを送る
+    int len;
+    int ret;
+
+    //UART受信バッファを読み捨てる
+    SipfClientFlushReadBuff();
+
+    // $$RXコマンド送信
+    len = sprintf(cmd, "$$FPUT %s %08X\r\n", file_id, sz_file);
+    for (;;) {
+        ret = HAL_UART_Transmit(pModUart, (uint8_t*)cmd, len, 100);
+        if (ret == HAL_OK) {
+        	break;
+        } else if (ret != -HAL_BUSY) {
+        	return -ret;
+        }
+    	HAL_Delay(10);
+    }
+
+	//XMODEM送信
+    XmodemBegin();
+	// 送信要求待ち
+	XmodemSendRet xret = XmodemSendWaitRequest(30000);
+	switch (xret) {
+	case XMODEM_SEND_RET_OK:		//OK
+		break;
+	case XMODEM_SEND_RET_CANCELED:	//キャンセル受信
+	default:					//失敗
+		// NG待ち
+		sipfCmdFputWaitNg();
+		return xret;
+	}
+	// ブロック送信
+	uint8_t fget_bn = 1;
+	size_t sz_block;
+	for (int idx = 0; idx < sz_file; idx += XMODEM_SZ_BLOCK) {
+		for (int i = 0; i < FPUT_RETRY_MAX; i++) {
+			if ((sz_file - idx) < XMODEM_SZ_BLOCK) {
+				sz_block = len % XMODEM_SZ_BLOCK;
+			} else {
+				sz_block = XMODEM_SZ_BLOCK;
+			}
+			xret = XmodemSendBlock(&fget_bn, &file_body[idx], sz_block, 10000);
+			switch (xret) {
+			case XMODEM_SEND_RET_OK:
+				goto next_block;
+			case XMODEM_SEND_RET_CANCELED:
+				//NG待ちへ
+				sipfCmdFputWaitNg();
+				return xret;
+			case XMODEM_SEND_RET_RETRY:
+				//同じブロックを再送
+				continue;
+			case XMODEM_SEND_RET_TIMEOUT:
+			case XMODEM_SEND_RET_FAILED:
+				//NG待ちへ
+				sipfCmdFputWaitNg();
+				return xret;
+			}
+			break;
+		}
+next_block:
+		fget_bn++;	//ブロック番号を加算
+	}
+
+	// XMODEM転送終了
+	XmodemSendEnd(500);
+
+	//$$FGETコマンドの応答を見る
+    for (;;) {
+        ret = SipfUtilReadLine((uint8_t*)cmd, sizeof(cmd), TMOUT_CMD);
+        if (ret == -3) {
+            //タイムアウト
+            return -3;
+        }
+        if (memcmp(cmd, "OK", 2) == 0) {
+            //OK
+            break;
+        }
+    }
+    return 0;
 }
 
 

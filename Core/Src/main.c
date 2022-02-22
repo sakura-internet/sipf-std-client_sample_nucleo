@@ -34,6 +34,7 @@
 #include <string.h>
 #include <time.h>
 #include "sipf_client.h"
+#include "xmodem.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -141,6 +142,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   int ret;
+  uint32_t fw_version;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -170,6 +172,8 @@ int main(void)
   print_msg("TX SAMPLE APP");
 #elif defined(SAMPLE_RX)
   print_msg("RX SAMPLE APP");
+#elif defined(SAMPLE_FPUT)
+  print_msg("FPUT SAMPLE APP");
 #else
 #error Please select Sample Application.(Declare SAMPLE_XX to '1' on main.h)
 #endif
@@ -192,20 +196,22 @@ int main(void)
 
   HAL_Delay(100);
 
-  ret = SipfGetFwVersion();
+  ret = SipfReadFwVersion(&fw_version);
   if (ret != 0) {
-	  print_msg("SipfGetFwVersion(): FAILED\r\n");
+	  print_msg("SipfReadFwVersion(): FAILED\r\n");
   }
 
 
 #if AUTH_MODE
-  print_msg("Set Auth mode... ");
-  ret = SipfSetAuthMode(0x01);
-  if (ret != 0) {
-	print_msg("FAILED(%d)\r\n", ret);
-	return -1;
+  if (fw_version < 0x00040000) {	// ver.0.4.0未満なら認証モード切り替えを行う
+	  print_msg("Set Auth mode... ");
+	  ret = SipfSetAuthMode(0x01);
+	  if (ret != 0) {
+		print_msg("FAILED(%d)\r\n", ret);
+		return -1;
+	  }
+	  print_msg("OK\r\n");
   }
-  print_msg("OK\r\n");
 #endif
   SipfClientFlushReadBuff();
 
@@ -247,6 +253,7 @@ int main(void)
 		ps = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
 		if ((prev_ps == GPIO_PIN_SET) && (ps == GPIO_PIN_RESET)) {
 			memset(buff, 0, sizeof(buff));
+
 #if defined(SAMPLE_TX)
 			print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
 
@@ -370,6 +377,18 @@ int main(void)
 			} else {
 				//エラーだった
 				print_msg("SipfCmdRx() failed: %d\r\n", ret);
+			}
+#elif defined(SAMPLE_FPUT)
+			print_msg("B1 PUSHED\r\nFile put: FPUT_SAMPLE.txt\r\n");
+			int len = sprintf((char*)buff, "Tick:0x%08lx\r\n", uwTick);
+			for (int i = 0; i < (sizeof(buff) - len); i++) {
+				buff[len+i] = (uint8_t)(i % 0x5f) + 0x20;
+			}
+			ret = SipfCmdFput("FPUT_SAMPLE.txt", buff, sizeof(buff));
+			if (ret == 0) {
+				print_msg("Done\r\n");
+			} else {
+				print_msg("Failed(%d)\r\n", ret);
 			}
 #endif
 		}
@@ -550,7 +569,92 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void XmodemDelay(uint32_t delay)
+{
+	HAL_Delay(delay);
+}
 
+#define XMODEM_UART	huart1
+int XmodemGetByte(uint8_t *b)
+{
+	int ret = SipfClientUartReadByte(b);
+	if (ret == -1) {
+		//EMPTY
+		return -1;
+	}
+	return 0;
+
+#if 0
+	int ret = 0;
+	HAL_StatusTypeDef hal_ret = HAL_UART_Receive(&XMODEM_UART, b, 1, 0);
+	if (hal_ret == HAL_TIMEOUT) {
+		ret = -3;
+	}
+	if (hal_ret == HAL_ERROR) {
+		ret = -1;
+	}
+	if (hal_ret != HAL_OK) {
+		ret = hal_ret;
+	}
+#endif
+	return ret;
+}
+
+int XmodemGetByteTimeout(uint8_t *b, uint32_t timeout)
+{
+	int ret;
+	uint32_t read_timeout = uwTick + timeout;
+	for (;;) {
+		if (!SipfClientUartIsEmpty()) {
+			ret = SipfClientUartReadByte(b);
+			if (ret == -1) {
+				return -1;
+			}
+			return 0;
+		}
+		if (((int)read_timeout - (int)uwTick) <= 0) {
+			//リードタイムアウト
+			return -1;
+		}
+	}
+#if 0
+	int ret = 0;
+	HAL_StatusTypeDef hal_ret = HAL_UART_Receive(&XMODEM_UART, b, 1, timeout);
+	if (hal_ret == HAL_TIMEOUT) {
+		ret = -3;
+	}
+	if (hal_ret == HAL_ERROR) {
+		ret = -1;
+	}
+	return ret;
+#endif
+}
+
+int XmodemPutByte(uint8_t b)
+{
+	int ret = 0;
+	HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, &b, 1, 0);
+	if (hal_ret == HAL_TIMEOUT) {
+		ret = -3;
+	}
+	if (hal_ret == HAL_ERROR) {
+		ret = -1;
+	}
+	return ret;
+}
+
+int XmodemPut(uint8_t *buff, int sz)
+{
+	int ret = 0;
+	HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, buff, (uint16_t)sz, 100);
+	if (hal_ret == HAL_TIMEOUT) {
+		ret = -3;
+	}
+	if (hal_ret == HAL_ERROR) {
+		ret = -1;
+	}
+	return ret;
+}
 /* USER CODE END 4 */
 
 /**
