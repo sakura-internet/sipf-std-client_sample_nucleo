@@ -41,6 +41,7 @@ You can select the application by selecting the C preprocessor macro.
 |---|---|---|
 | TX(uplink) sample | `SAMPLE_TX` | `Debug-TX` or `Release-TX` |
 | RX(downlink) sample | `SAMPLE_RX` | `Debug-RX` or `Release-RX` |
+| FPUT(File upload) sample | `SAMPLE_FPUT` | `Debug-FPUT` or `Release-FPUT` |
 
 We have prepared MACRO defined build configuration for CubeIDE.  
 Select bulid configuration from `[Project]-[Build Configurations]-[Set Active]` menu.
