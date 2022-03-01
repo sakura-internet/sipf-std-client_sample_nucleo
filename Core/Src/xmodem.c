@@ -20,9 +20,9 @@
 #define LOG_ERR(...)
 /*
 extern int print_msg(const char *fmt, ...);
-#define LOG_DBG(...) 			print_msg(__VA_ARGS__)
-#define LOG_INF(...) 			print_msg(__VA_ARGS__)
-#define LOG_ERR(...) 			print_msg(__VA_ARGS__)
+#define LOG_DBG(...) print_msg(__VA_ARGS__)
+#define LOG_INF(...) print_msg(__VA_ARGS__)
+#define LOG_ERR(...) print_msg(__VA_ARGS__)
 */
 #define LOG_HEXDUMP_DBG(...)
 #define LOG_HEXDUMP_INF(...)
@@ -312,10 +312,10 @@ XmodemSendRet XmodemSendBlock(uint8_t *bn, uint8_t *payload, int sz_payload, int
     uint8_t b;
     ret = XmodemGetByteTimeout(&b, time_out);
     if (ret == -3) {
-    	LOG_ERR("XmodemGetByteTimeout() timeout.");
+        LOG_ERR("XmodemGetByteTimeout() timeout.");
         return XMODEM_SEND_RET_TIMEOUT;
     } else if (ret < 0) {
-    	LOG_ERR("XmodemGetByteTimeout() failed.");
+        LOG_ERR("XmodemGetByteTimeout() failed.");
         return XMODEM_SEND_RET_FAILED;
     }
 

@@ -44,7 +44,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SW_POLL_TIMEOUT	(100)
+#define SW_POLL_TIMEOUT (100)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -90,46 +90,46 @@ int print_msg(const char *fmt, ...)
 
 static void requestResetModule(void)
 {
-	// Reset request.
-	HAL_GPIO_WritePin(OUTPUT_WAKE_IN_GPIO_Port, OUTPUT_WAKE_IN_Pin, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(OUTPUT_WAKE_IN_GPIO_Port, OUTPUT_WAKE_IN_Pin, GPIO_PIN_RESET);
+    // Reset request.
+    HAL_GPIO_WritePin(OUTPUT_WAKE_IN_GPIO_Port, OUTPUT_WAKE_IN_Pin, GPIO_PIN_SET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(OUTPUT_WAKE_IN_GPIO_Port, OUTPUT_WAKE_IN_Pin, GPIO_PIN_RESET);
 
-	HAL_Delay(200);
+    HAL_Delay(200);
 }
 
 static int waitBootModule(void)
 {
-	int len, is_echo = 0;
+    int len, is_echo = 0;
 
-	// Wait READY message.
-	for (;;) {
-		len = SipfUtilReadLine(buff, sizeof(buff), 65000);
-		if (len < 0) {
-			// ERROR or BUSY or TIMEOUT
-			return len;
-		}
-		if (len == 0) {
-			continue;
-		}
-		if (len >= 13) {
-			if (memcmp(buff, "*** SIPF Client", 15) == 0) {
-				is_echo = 1;
-			}
-			//Detect READY message.
-			if (memcmp(buff, "+++ Ready +++", 13) == 0) {
-				break;
-			}
-			if (memcmp(buff, "ERR:Faild", 9) == 0) {
-				print_msg("%s\r\n", buff);
-				return -1;
-			}
-		}
-		if (is_echo) {
-			print_msg("%s\r\n", buff);
-		}
-	}
-	return 0;
+    // Wait READY message.
+    for (;;) {
+        len = SipfUtilReadLine(buff, sizeof(buff), 65000);
+        if (len < 0) {
+            // ERROR or BUSY or TIMEOUT
+            return len;
+        }
+        if (len == 0) {
+            continue;
+        }
+        if (len >= 13) {
+            if (memcmp(buff, "*** SIPF Client", 15) == 0) {
+                is_echo = 1;
+            }
+            //Detect READY message.
+            if (memcmp(buff, "+++ Ready +++", 13) == 0) {
+                break;
+            }
+            if (memcmp(buff, "ERR:Faild", 9) == 0) {
+                print_msg("%s\r\n", buff);
+                return -1;
+            }
+        }
+        if (is_echo) {
+            print_msg("%s\r\n", buff);
+        }
+    }
+    return 0;
 }
 
 /* USER CODE END 0 */
@@ -188,8 +188,8 @@ int main(void)
   print_msg("### MODULE OUTPUT ###\r\n");
   ret = waitBootModule();
   if (ret != 0) {
-	  print_msg("FAILED(%d)\r\n", ret);
-	  return -1;
+      print_msg("FAILED(%d)\r\n", ret);
+      return -1;
   }
   print_msg("#####################\r\n");
   print_msg("OK\r\n");
@@ -198,19 +198,19 @@ int main(void)
 
   ret = SipfReadFwVersion(&fw_version);
   if (ret != 0) {
-	  print_msg("SipfReadFwVersion(): FAILED\r\n");
+      print_msg("SipfReadFwVersion(): FAILED\r\n");
   }
 
 
 #if AUTH_MODE
-  if (fw_version < 0x00040000) {	// ver.0.4.0未満なら認証モード切り替えを行う
-	  print_msg("Set Auth mode... ");
-	  ret = SipfSetAuthMode(0x01);
-	  if (ret != 0) {
-		print_msg("FAILED(%d)\r\n", ret);
-		return -1;
-	  }
-	  print_msg("OK\r\n");
+  if (fw_version < 0x00040000) {    // ver.0.4.0未満なら認証モード切り替えを行う
+      print_msg("Set Auth mode... ");
+      ret = SipfSetAuthMode(0x01);
+      if (ret != 0) {
+        print_msg("FAILED(%d)\r\n", ret);
+        return -1;
+      }
+      print_msg("OK\r\n");
   }
 #endif
   SipfClientFlushReadBuff();
@@ -230,171 +230,171 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	uint8_t b;
-	for (;;) {
-		if (SipfClientUartReadByte(&b) != -1) {
-			HAL_UART_Transmit(&huart2, &b, 1, 0);
-		} else {
-			break;
-		}
-	}
-	for (;;) {
-		if (HAL_UART_Receive(&huart2, &b, 1, 0) == HAL_OK) {
-			SipfClientUartWriteByte(b);
-		} else {
-			break;
-		}
-	}
+    uint8_t b;
+    for (;;) {
+        if (SipfClientUartReadByte(&b) != -1) {
+            HAL_UART_Transmit(&huart2, &b, 1, 0);
+        } else {
+            break;
+        }
+    }
+    for (;;) {
+        if (HAL_UART_Receive(&huart2, &b, 1, 0) == HAL_OK) {
+            SipfClientUartWriteByte(b);
+        } else {
+            break;
+        }
+    }
 
-	// B2 Push
-	if (((int)poll_timeout - (int)uwTick) <= 0) {
-		poll_timeout = uwTick + SW_POLL_TIMEOUT;
-		GPIO_PinState ps;
-		ps = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
-		if ((prev_ps == GPIO_PIN_SET) && (ps == GPIO_PIN_RESET)) {
-			memset(buff, 0, sizeof(buff));
+    // B2 Push
+    if (((int)poll_timeout - (int)uwTick) <= 0) {
+        poll_timeout = uwTick + SW_POLL_TIMEOUT;
+        GPIO_PinState ps;
+        ps = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+        if ((prev_ps == GPIO_PIN_SET) && (ps == GPIO_PIN_RESET)) {
+            memset(buff, 0, sizeof(buff));
 
 #if defined(SAMPLE_TX)
-			print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
+            print_msg("B1 PUSHED\r\nTX(tag_id: 0x01, type: 0x04, value: %d)\r\n", count_tx);
 
-			ret = SipfCmdTx(0x01, 0x04, (uint8_t*)&count_tx, 4, buff);
-			switch (ret) {
-			case 0:
-				print_msg("OK(OTID: %s)\r\n", buff);
-				count_tx++;
-				break;
-			case -3:
-				print_msg("Receive Timeout...\r\n");
-				break;
-			default:
-				print_msg("NG\r\n");
-				break;
-			}
+            ret = SipfCmdTx(0x01, 0x04, (uint8_t*)&count_tx, 4, buff);
+            switch (ret) {
+            case 0:
+                print_msg("OK(OTID: %s)\r\n", buff);
+                count_tx++;
+                break;
+            case -3:
+                print_msg("Receive Timeout...\r\n");
+                break;
+            default:
+                print_msg("NG\r\n");
+                break;
+            }
 #elif defined(SAMPLE_RX)
-			print_msg("B1 PUSHED\r\nRX\r\n");
-			SipfObjObject objs[16];
-			uint64_t stm, rtm;
-			uint8_t remain, qty;
-			ret = SipfCmdRx(buff, &stm, &rtm, &remain, &qty, objs, 16);
-			if (ret > 0) {
-				time_t t;
-				struct tm *ptm;
-				static char ts[128];
-				print_msg("OTID:%s\r\n", buff);
-				/* USER_SEND_DATE_TIME*/
-				t = (time_t)stm / 1000;
-				ptm = localtime(&t);
-				strftime(ts, sizeof(ts),"User send datetime(UTC)    : %Y/%m/%d %H:%M:%S\r\n", ptm);
-				print_msg(ts);
-				/* SIPF_RECEIVE_DATE_TIME*/
-				t = (time_t)rtm / 1000;
-				ptm = localtime(&t);
-				strftime(ts, sizeof(ts),"SIPF received datetime(UTC): %Y/%m/%d %H:%M:%S\r\n", ptm);
-				print_msg(ts);
-				/* REMAIN / QTY */
-				print_msg("remain:%d\r\nqty:%d\r\n", remain, qty);
+            print_msg("B1 PUSHED\r\nRX\r\n");
+            SipfObjObject objs[16];
+            uint64_t stm, rtm;
+            uint8_t remain, qty;
+            ret = SipfCmdRx(buff, &stm, &rtm, &remain, &qty, objs, 16);
+            if (ret > 0) {
+                time_t t;
+                struct tm *ptm;
+                static char ts[128];
+                print_msg("OTID:%s\r\n", buff);
+                /* USER_SEND_DATE_TIME*/
+                t = (time_t)stm / 1000;
+                ptm = localtime(&t);
+                strftime(ts, sizeof(ts),"User send datetime(UTC)    : %Y/%m/%d %H:%M:%S\r\n", ptm);
+                print_msg(ts);
+                /* SIPF_RECEIVE_DATE_TIME*/
+                t = (time_t)rtm / 1000;
+                ptm = localtime(&t);
+                strftime(ts, sizeof(ts),"SIPF received datetime(UTC): %Y/%m/%d %H:%M:%S\r\n", ptm);
+                print_msg(ts);
+                /* REMAIN / QTY */
+                print_msg("remain:%d\r\nqty:%d\r\n", remain, qty);
 
-				SipfObjPrimitiveType v;
-				for (int i = 0; i < ret; i++) {
-					//受信データあった
-					print_msg("obj[%d]: tag=0x%02x, type=0x%02x, len=%d, value=", i, objs[i].tag_id, objs[i].type, objs[i].value_len);
-					uint8_t *p_value = objs[i].value;
-					switch (objs[i].type) {
-					case OBJ_TYPE_UINT8:
-						memcpy(v.b, p_value, sizeof(uint8_t));
-						print_msg("%u\r\n", v.u8);
-						break;
-					case OBJ_TYPE_INT8:
-						memcpy(v.b, p_value, sizeof(int8_t));
-						print_msg("%d\r\n", v.i8);
-						break;
-					case OBJ_TYPE_UINT16:
-						memcpy(v.b, p_value, sizeof(uint16_t));
-						print_msg("%u\r\n", v.u16);
-						break;
-					case OBJ_TYPE_INT16:
-						memcpy(v.b, p_value, sizeof(int16_t));
-						print_msg("%d\r\n", v.i16);
-						break;
-					case OBJ_TYPE_UINT32:
-						memcpy(v.b, p_value, sizeof(uint32_t));
-						print_msg("%u\r\n", v.u32);
-						break;
-					case OBJ_TYPE_INT32:
-						memcpy(v.b, p_value, sizeof(int32_t));
-						print_msg("%d\r\n", v.i32);
-						break;
-					case OBJ_TYPE_UINT64:
-						memcpy(v.b, p_value, sizeof(uint64_t));
-						print_msg("%llu\r\n", v.u64);
-						break;
-					case OBJ_TYPE_INT64:
-						memcpy(v.b, p_value, sizeof(int64_t));
-						print_msg("%lld\r\n", v.i64);
-						break;
-					case OBJ_TYPE_FLOAT32:
-						memcpy(v.b, p_value, sizeof(float));
-						print_msg("%f\r\n", v.f);
-						break;
-					case OBJ_TYPE_FLOAT64:
-						memcpy(v.b, p_value, sizeof(double));
-						print_msg("%lf\r\n", v.d);
-						break;
-					case OBJ_TYPE_BIN:
-						print_msg("0x");
-						for (int j = 0; j < objs[i].value_len; j++) {
-							print_msg("%02x", objs[i].value[j]);
-						}
-						print_msg("\r\n");
-						break;
-					case OBJ_TYPE_STR_UTF8:
-						for (int j = 0; j < objs[i].value_len; j++) {
-							print_msg("%c", objs[i].value[j]);
-						}
-						print_msg("\r\n");
-						break;
-					default:
-						break;
-					}
-					// LED2 ON/OFF サンプル
-					if ((objs[i].tag_id == 0x4c) && (objs[i].type == OBJ_TYPE_UINT8)) {
-						//Tag='L' で Type=uint8の場合
-						if (*(uint8_t*)objs[i].value == 0) {
-							// LED消す
-							print_msg("LED2(GREEN): OFF\r\n");
-							HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-						} else {
-							// LED付ける
-							print_msg("LED2(GREEN): ON\r\n");
-							HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-						}
-					}
-				}
-				print_msg("RX done.\r\n");
-			} else if (ret == 0) {
-				//受信データなかった
-				print_msg("SipfCmdRx() empty\r\n");
-			} else {
-				//エラーだった
-				print_msg("SipfCmdRx() failed: %d\r\n", ret);
-			}
+                SipfObjPrimitiveType v;
+                for (int i = 0; i < ret; i++) {
+                    //受信データあった
+                    print_msg("obj[%d]: tag=0x%02x, type=0x%02x, len=%d, value=", i, objs[i].tag_id, objs[i].type, objs[i].value_len);
+                    uint8_t *p_value = objs[i].value;
+                    switch (objs[i].type) {
+                    case OBJ_TYPE_UINT8:
+                        memcpy(v.b, p_value, sizeof(uint8_t));
+                        print_msg("%u\r\n", v.u8);
+                        break;
+                    case OBJ_TYPE_INT8:
+                        memcpy(v.b, p_value, sizeof(int8_t));
+                        print_msg("%d\r\n", v.i8);
+                        break;
+                    case OBJ_TYPE_UINT16:
+                        memcpy(v.b, p_value, sizeof(uint16_t));
+                        print_msg("%u\r\n", v.u16);
+                        break;
+                    case OBJ_TYPE_INT16:
+                        memcpy(v.b, p_value, sizeof(int16_t));
+                        print_msg("%d\r\n", v.i16);
+                        break;
+                    case OBJ_TYPE_UINT32:
+                        memcpy(v.b, p_value, sizeof(uint32_t));
+                        print_msg("%u\r\n", v.u32);
+                        break;
+                    case OBJ_TYPE_INT32:
+                        memcpy(v.b, p_value, sizeof(int32_t));
+                        print_msg("%d\r\n", v.i32);
+                        break;
+                    case OBJ_TYPE_UINT64:
+                        memcpy(v.b, p_value, sizeof(uint64_t));
+                        print_msg("%llu\r\n", v.u64);
+                        break;
+                    case OBJ_TYPE_INT64:
+                        memcpy(v.b, p_value, sizeof(int64_t));
+                        print_msg("%lld\r\n", v.i64);
+                        break;
+                    case OBJ_TYPE_FLOAT32:
+                        memcpy(v.b, p_value, sizeof(float));
+                        print_msg("%f\r\n", v.f);
+                        break;
+                    case OBJ_TYPE_FLOAT64:
+                        memcpy(v.b, p_value, sizeof(double));
+                        print_msg("%lf\r\n", v.d);
+                        break;
+                    case OBJ_TYPE_BIN:
+                        print_msg("0x");
+                        for (int j = 0; j < objs[i].value_len; j++) {
+                            print_msg("%02x", objs[i].value[j]);
+                        }
+                        print_msg("\r\n");
+                        break;
+                    case OBJ_TYPE_STR_UTF8:
+                        for (int j = 0; j < objs[i].value_len; j++) {
+                            print_msg("%c", objs[i].value[j]);
+                        }
+                        print_msg("\r\n");
+                        break;
+                    default:
+                        break;
+                    }
+                    // LED2 ON/OFF サンプル
+                    if ((objs[i].tag_id == 0x4c) && (objs[i].type == OBJ_TYPE_UINT8)) {
+                        //Tag='L' で Type=uint8の場合
+                        if (*(uint8_t*)objs[i].value == 0) {
+                            // LED消す
+                            print_msg("LED2(GREEN): OFF\r\n");
+                            HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+                        } else {
+                            // LED付ける
+                            print_msg("LED2(GREEN): ON\r\n");
+                            HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+                        }
+                    }
+                }
+                print_msg("RX done.\r\n");
+            } else if (ret == 0) {
+                //受信データなかった
+                print_msg("SipfCmdRx() empty\r\n");
+            } else {
+                //エラーだった
+                print_msg("SipfCmdRx() failed: %d\r\n", ret);
+            }
 #elif defined(SAMPLE_FPUT)
-			print_msg("B1 PUSHED\r\nFile put: FPUT_SAMPLE.txt\r\n");
-			int len = sprintf((char*)buff, "Tick:0x%08lx\r\n", uwTick);
-			for (int i = 0; i < (sizeof(buff) - len); i++) {
-				buff[len+i] = (uint8_t)(i % 0x5f) + 0x20;
-			}
-			ret = SipfCmdFput("FPUT_SAMPLE.txt", buff, sizeof(buff));
-			if (ret == 0) {
-				print_msg("Done\r\n");
-			} else {
-				print_msg("Failed(%d)\r\n", ret);
-			}
+            print_msg("B1 PUSHED\r\nFile put: FPUT_SAMPLE.txt\r\n");
+            int len = sprintf((char*)buff, "Tick:0x%08lx\r\n", uwTick);
+            for (int i = 0; i < (sizeof(buff) - len); i++) {
+                buff[len+i] = (uint8_t)(i % 0x5f) + 0x20;
+            }
+            ret = SipfCmdFput("FPUT_SAMPLE.txt", buff, sizeof(buff));
+            if (ret == 0) {
+                print_msg("Done\r\n");
+            } else {
+                print_msg("Failed(%d)\r\n", ret);
+            }
 #endif
-		}
+        }
 
-		prev_ps = ps;
-	}
+        prev_ps = ps;
+    }
   }
   /* USER CODE END 3 */
 }
@@ -571,89 +571,63 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void XmodemDelay(uint32_t delay)
 {
-	HAL_Delay(delay);
+    HAL_Delay(delay);
 }
 
-#define XMODEM_UART	huart1
+#define XMODEM_UART huart1
 int XmodemGetByte(uint8_t *b)
 {
-	int ret = SipfClientUartReadByte(b);
-	if (ret == -1) {
-		//EMPTY
-		return -1;
-	}
-	return 0;
-
-#if 0
-	int ret = 0;
-	HAL_StatusTypeDef hal_ret = HAL_UART_Receive(&XMODEM_UART, b, 1, 0);
-	if (hal_ret == HAL_TIMEOUT) {
-		ret = -3;
-	}
-	if (hal_ret == HAL_ERROR) {
-		ret = -1;
-	}
-	if (hal_ret != HAL_OK) {
-		ret = hal_ret;
-	}
-#endif
-	return ret;
+    int ret = SipfClientUartReadByte(b);
+    if (ret == -1) {
+        //EMPTY
+        return -1;
+    }
+    return 0;
 }
 
 int XmodemGetByteTimeout(uint8_t *b, uint32_t timeout)
 {
-	int ret;
-	uint32_t read_timeout = uwTick + timeout;
-	for (;;) {
-		if (!SipfClientUartIsEmpty()) {
-			ret = SipfClientUartReadByte(b);
-			if (ret == -1) {
-				return -1;
-			}
-			return 0;
-		}
-		if (((int)read_timeout - (int)uwTick) <= 0) {
-			//リードタイムアウト
-			return -1;
-		}
-	}
-#if 0
-	int ret = 0;
-	HAL_StatusTypeDef hal_ret = HAL_UART_Receive(&XMODEM_UART, b, 1, timeout);
-	if (hal_ret == HAL_TIMEOUT) {
-		ret = -3;
-	}
-	if (hal_ret == HAL_ERROR) {
-		ret = -1;
-	}
-	return ret;
-#endif
+    int ret;
+    uint32_t read_timeout = uwTick + timeout;
+    for (;;) {
+        if (!SipfClientUartIsEmpty()) {
+            ret = SipfClientUartReadByte(b);
+            if (ret == -1) {
+                return -1;
+            }
+            return 0;
+        }
+        if (((int)read_timeout - (int)uwTick) <= 0) {
+            //リードタイムアウト
+            return -1;
+        }
+    }
 }
 
 int XmodemPutByte(uint8_t b)
 {
-	int ret = 0;
-	HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, &b, 1, 0);
-	if (hal_ret == HAL_TIMEOUT) {
-		ret = -3;
-	}
-	if (hal_ret == HAL_ERROR) {
-		ret = -1;
-	}
-	return ret;
+    int ret = 0;
+    HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, &b, 1, 0);
+    if (hal_ret == HAL_TIMEOUT) {
+        ret = -3;
+    }
+    if (hal_ret == HAL_ERROR) {
+        ret = -1;
+    }
+    return ret;
 }
 
 int XmodemPut(uint8_t *buff, int sz)
 {
-	int ret = 0;
-	HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, buff, (uint16_t)sz, 100);
-	if (hal_ret == HAL_TIMEOUT) {
-		ret = -3;
-	}
-	if (hal_ret == HAL_ERROR) {
-		ret = -1;
-	}
-	return ret;
+    int ret = 0;
+    HAL_StatusTypeDef hal_ret = HAL_UART_Transmit(&XMODEM_UART, buff, (uint16_t)sz, 100);
+    if (hal_ret == HAL_TIMEOUT) {
+        ret = -3;
+    }
+    if (hal_ret == HAL_ERROR) {
+        ret = -1;
+    }
+    return ret;
 }
 /* USER CODE END 4 */
 
